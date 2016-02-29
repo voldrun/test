@@ -5,7 +5,7 @@ class EchoHandler(asyncore.dispatcher_with_send):
         data = self.recv(1024)
         if data:
             self.send(data)
-            if data == 'close':
+            if data == 'close' or data == 'Close':
                 self.close()
 
 class EchoServer(asyncore.dispatcher):
