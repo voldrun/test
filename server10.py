@@ -1,42 +1,27 @@
-import socket, threading, string
+import asyncore, socket
 
-debug = True
+class EchoHandler(asyncore.dispatcher_with_send):
+    def handler_read(self):
+        data = self.recv(1024)
+        if data:
+            if data == 'close' or data == 'Close':
+                self.close()
+            else:
+                self.send(data)
 
-_connector = None
-_running = True
+class EchoServer(asyncore.dispatcher):
+    def __init__(self, host, port):
+        asyncore.dispatcher.__init__(self)
+        self.create_socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.set_reuse_addr()
+        self.bind((host, port))
+        self.listen(10)
+    def handle_accept(self):
+        pair = self.accept()
+        if pair is not None:
+            sock, addr = pair
+            print('Connect from %s' % repr(addr))
+            handler = EchoHandler(sock)
 
-_host = '0.0.0.0'
-_port = 2222
-_maxClient = 10
-_recvBuffer = 2000
-
-def printd (aString):
-    if debug:
-        print aString
-
-class talkToClient (threading.Thread):
-    def __init__(self, clientSock, addr):
-        self.clientSock = clientSock
-        self.addr = addr
-        threading.Thread.__init__(self)
-    def run (self):
-        while True:
-            recvData = self.clientSock.recv (_recvBuffer)
-            if not recvData:
-                self.clientSock.send ('bye')
-                break
-            printd('Client ' + str (self.addr) + ' say "' + str (recvData) + '"')
-            self.clientSock.send (recvData)
-            if recvData == "exit":
-                break
-        self.clientSock.close ()
-
-_connector = socket.socket (socket.AF_INET, socket.SOCK_STREAM)
-_connector.bind ((str(_host), int(_port)))
-_connector.listen (int(_maxClient))
-
-while _running:
-    printd ('Running on ' + _host + ':' + str (_port) + '.')
-    channel, details = _connector.accept ()
-    printd ('Connect on : ' + str (details))
-    talkToClient (channel, details).start ()
+server = EchoServer('0.0.0.0', 2222)
+asyncore.loop()
